@@ -1,8 +1,3 @@
-QE(Wave), created by Plot Digitizer, 2.6.3	
-Date: 15. 8. 7, 오전 11:56:12	
-	
-	
-95	
 Wave	QE
 300.884	0.200686
 303.183	0.217839

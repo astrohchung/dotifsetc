@@ -1,6 +1,4 @@
-CaF2 AR coating: spectral data (per surface)							
-							
-	R at 0 deg	R at 20 deg	R at 30 deg		T at 0 deg	T at 20 deg	T at 30 deg
+wavenm r0 r20 r30 t0 t20 t30
 360	1.2512	0.43055	0.21332		97.75072	98.56623	98.78388
 361	1.04573	0.35282	0.21413		97.97572	98.66479	98.80441
 362	0.86795	0.29191	0.22051		98.17318	98.74651	98.81921
