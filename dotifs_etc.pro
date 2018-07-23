@@ -464,8 +464,8 @@ endif
 if use_asahi then begin
 	print, 'read asahi filter'
 ;	readcol, dir+'asahi_filter_trans.dat', format='D,D', afwave, aftrans
-;	readcol, dir+'asahi_filter_01.dat', format='D,D', afwave, aftrans
-	readcol, dir+'asahi_filter_01_aoi10.dat', format='D,D', afwave, aftrans
+	readcol, dir+'asahi_filter_01.dat', format='D,D', afwave, aftrans
+;	readcol, dir+'asahi_filter_01_aoi10.dat', format='D,D', afwave, aftrans
 	aftrans=aftrans/100.
 ;	afwave=afwave+wshift-6.6
 	afwave=afwave*10.

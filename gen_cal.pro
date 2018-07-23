@@ -22,6 +22,15 @@ pro gen_cal, wave_in, flux_out, dir, calname
 		if (lwave[i] le wave[0]) or (lwave[i] ge wave[n_elements(wave)-1]) then continue
 		diff=abs(wave-lwave[i])
 		sort_idx=sort(diff)
+
+if 1 then begin
+;		nrstwave=wave[sort_idx[0]]
+;		nrst_idx=where(wave eq nrstwave)
+		nrst_idx=sort_idx[0]
+		binsize=wave[nrst_idx+1]-wave[nrst_idx]
+		nflux=lflux[i]/binsize
+		flux_out[nrst_idx]=nflux*1.d-8
+endif else begin
 		adjwave=wave[sort_idx[[0,1]]]
 		match, adjwave, wave, suba, subb
 		binsize=abs(adjwave[0]-adjwave[1])
@@ -30,14 +39,17 @@ pro gen_cal, wave_in, flux_out, dir, calname
 		wave_diff=abs(adjwave[suba]-lwave[i])
 		wave_ratio=1-wave_diff/binsize
 		flux_out[subb]=flux_out[subb]+nflux*wave_ratio*1.d-8
+endelse
 ;		flux_out[subb]=nflux*wave_ratio*1.d-8
 ;		flux_out[subb]=nflux*wave_ratio*1.d-10
 	endfor
 
-	zero_idx=where(0.d eq flux_out, zerocount)
+;	zero_idx=where(0.d eq flux_out, zerocount)
+
 ;print, zerocount
 ;	flux_out[zero_idx]=dblarr(zerocount)+nflux*wave_ratio[0]*1.d-8*0.01
-	flux_out=flux_out+nflux*wave_ratio[0]*1.d-8*0.01
+
+;	flux_out=flux_out+nflux*wave_ratio[0]*1.d-8*0.01
 
 ;print, flux_out[lindgen(50)]
 ;print, wave_in
