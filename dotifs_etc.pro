@@ -220,7 +220,7 @@ pro dotifs_etc, scflag=scflag, magnitude=magnitude, exptime=exptime, skymagnitud
 	skysignalarr=skysignalarr, bbtemp=bbtemp, calibration=calibration, wshift=wshift, asahi=asahi, waveout=waveout, noiseskyarr=noiseskyarr, $
 	rn=rn, npix_spa=npix_spa, stype=stype, skyfrac=skyfrac, readnoisefrac=readnoisefrac, snrout=snrout, dark=dark, dtypes=dtypes, ofile=ofile, $
 	dir=dir, calid=calid, arclamp=arclamp
-
+print, 'Start!'
 ;system parameters
 pri=3.6d0
 sec=0.915d0
@@ -280,7 +280,8 @@ endcase
 endif
 
 
-skysamplingsize=0.4^2*!pi
+dpi=3.141592653589793d
+skysamplingsize=0.4^2*dpi
 
 
 params=create_struct($
@@ -304,7 +305,7 @@ params=create_struct($
 	stwave=plotrange[0]
 	edwave=plotrange[1]
 ;	wstep=params.wavestep
-	telaream2=(pri^2.-sec^2.)/4*!pi		;in m^2
+	telaream2=(pri^2.-sec^2.d)/4*dpi		;in m^2
 	telarea=telaream2*1e4				;in cm^2
 	
 	transfile=dir+'trans150626.dat'
@@ -352,11 +353,11 @@ endif else begin
 	stwave=wave[0]
 	edwave=wave[nwave-1]
 endelse
-
 	magarr=replicate(magnitude, nwave)
 
-	consth=6.62606957*10^(-34d)
-	constc=299792458.
+;	consth=6.62606957d*10^(-34d)
+	consth=6.62607004d*10^(-34d)
+	constc=299792458d
 
 ;	photone=!const.h*1.d7*!const.c/(wave*1e-10)
 	photone=consth*1.d7*constc/(wave*1e-10)
@@ -366,6 +367,7 @@ endelse
 
 	bandtransfile=dir+band+'filter.dat'
 	readcol, bandtransfile, format='D,D', bandwave, bandtrans, /silent
+	bandtrans=interpol(bandtrans, bandwave, wave, spline=cspline)
 
 	galtempfile='Flat Magnitude'
 if keyword_set(galtemp) then begin
@@ -377,14 +379,17 @@ if keyword_set(galtemp) then begin
 		galflam=galflam/(1.d0+z)
 		galwave=galwave*(1.d0+z)
 	endif
+	galflam=interpol(galflam, galwave, wave, spline=cspline)
 
 	if not keyword_set(z) then z=0.d
 
-	flux2bpmag, bpmag, galflam, galwave, bandtrans, filterwave=bandwave
-;print, bpmag
+;	flux2bpmag, bpmag, galflam, galwave, bandtrans, filterwave=bandwave
+	flux2bpmag, bpmag, galflam, wave, bandtrans
+print, bpmag, 'bp1'
+	bpmag=12.246920082749895d
+
 	ratio=10d0^(-0.4d0*(magnitude-bpmag))
 	sourceflux=ratio*galflam
-
 	if keyword_set(inputflux) then begin
 		if not keyword_set(inputwave) then return
 		sourceflux=inputflux
@@ -392,16 +397,26 @@ if keyword_set(galtemp) then begin
 		galtempfile='User defined input spectrum'
 	endif
 
-	sourceflux=interpol(sourceflux, galwave, wave, spline=cspline)
+;	sourceflux=interpol(sourceflux, galwave, wave, spline=cspline)
+print, bpmag, 'bpmag'
 	sourceflux=sourceflux*((wave ge min(galwave)) and (wave le max(galwave)))
 endif
 
 ;print, constflux
 	sourcecount=(sourceflux/photone)*wstep*telarea*exptime*skysamplingsize
+;;tpoint
+;print, ((3.6d^2-0.915d^2.)/4*3.141592653589793d)*1e4
+;print, sourceflux
+;print, telarea, skysamplingsize
+print, sourcecount
+;print, wstep, telarea, exptime, skysamplingsize
+;print, telarea, format='(f50.20)'
+;print, photone
+
 
 if keyword_set(bbtemp) then begin
-	sourceflux=planck(wave, bbtemp)*0.015^2.*!pi/(1e5)^2
-	sourcecount=planck(wave, bbtemp)*0.015^2.*!pi/(1e5)^2/photone*wstep*exptime
+	sourceflux=planck(wave, bbtemp)*0.015^2.*dpi/(1e5)^2
+	sourcecount=planck(wave, bbtemp)*0.015^2.*dpi/(1e5)^2/photone*wstep*exptime
 	galtempfile='Blackbody of temperature='+string(bbtemp, format='(F0.1)')+'K'
 endif
 
@@ -438,7 +453,8 @@ skyfile=skyfilearr[stype]
 	skyflux=interpol(skyflux, skywave, wave,spline=cspline )
 	skyflux=skyflux*((wave ge min(skywave)) and (wave le max(skywave)))
 
-	flux2bpmag, bpskymag, skyflux, wave, bandtrans, filterwave=bandwave
+;	flux2bpmag, bpskymag, skyflux, wave, bandtrans, filterwave=bandwave
+	flux2bpmag, bpskymag, skyflux, wave, bandtrans
 
 if keyword_set(skymagnitude) then begin
 	ratio=10d0^(-0.4d0*(skymagnitude-bpskymag))
