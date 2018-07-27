@@ -315,7 +315,8 @@ params=create_struct($
 
         file=dir+'vph_160307_new.dat'
         readcol, file, f='D,D', wave_vph_new, eff_vph_new
-        eff_vph_new=interpol(eff_vph_new, wave_vph_new/1000, wavemicron)
+        eff_vph_new=interpol(eff_vph_new, wave_vph_new/1000., wavemicron)
+	eff_vph_new=eff_vph_new*((wavemicron ge min(wave_vph_new/1000.)) and (wavemicron le max(wave_vph_new/1000.)))
 	g1st=eff_vph_new
 	g0th=g1st/g1st_o*g0th_o
 	g2nd=g1st/g1st_o*g2nd_o
@@ -324,11 +325,13 @@ params=create_struct($
         file=dir+'altcoating.dat'
         readcol, file, f='D,D,D,D,D,D,D', wave_ac, r0, r20, r30, t0, t20, t30
         eff_caf2_coat=interpol(t0,wave_ac/1000., wavemicron)/100.
+	eff_caf2_coat=eff_caf2_coat*((wavemicron ge min(wave_ac/1000.)) and (wavemicron le max(wave_ac/1000.)))
 
         file=dir+'ccd_multi2.txt'
         readcol, file, F=format, wavenm_cm2, ccd_multi2
         waveang_cm2=wavenm_cm2*10
         ccd=interpol(ccd_multi2, waveang_cm2/10000., wavemicron)
+	ccd=ccd*((wavemicron ge min( waveang_cm2/10000.)) and (wavemicron le max(waveang_cm2/10000.)))
 	ccdreflect=1-ccd
 
 ;        file=dir+'asahi_filter_01_aoi10.dat'
@@ -369,6 +372,8 @@ endelse
 	readcol, bandtransfile, format='D,D', bandwave, bandtrans, /silent
 	bandtrans=interpol(bandtrans, bandwave, wave, spline=cspline)
 
+	bandtrans=bandtrans*((wave ge min(bandwave)) and (wave le max(bandwave)))
+
 	galtempfile='Flat Magnitude'
 if keyword_set(galtemp) then begin
 	galtempfile=dir+'kc96/'+galtemp+'_template.ascii'
@@ -386,7 +391,7 @@ if keyword_set(galtemp) then begin
 ;	flux2bpmag, bpmag, galflam, galwave, bandtrans, filterwave=bandwave
 	flux2bpmag, bpmag, galflam, wave, bandtrans
 print, bpmag, 'bp1'
-	bpmag=12.246920082749895d
+;	bpmag=12.246920082749895d
 
 	ratio=10d0^(-0.4d0*(magnitude-bpmag))
 	sourceflux=ratio*galflam
@@ -408,7 +413,7 @@ endif
 ;print, ((3.6d^2-0.915d^2.)/4*3.141592653589793d)*1e4
 ;print, sourceflux
 ;print, telarea, skysamplingsize
-print, sourcecount
+;print, sourcecount
 ;print, wstep, telarea, exptime, skysamplingsize
 ;print, telarea, format='(f50.20)'
 ;print, photone
@@ -456,6 +461,7 @@ skyfile=skyfilearr[stype]
 ;	flux2bpmag, bpskymag, skyflux, wave, bandtrans, filterwave=bandwave
 	flux2bpmag, bpskymag, skyflux, wave, bandtrans
 
+;print, skyflux
 if keyword_set(skymagnitude) then begin
 	ratio=10d0^(-0.4d0*(skymagnitude-bpskymag))
 	skyflux=ratio*skyflux
@@ -465,6 +471,7 @@ endif
 ;p1st=where((waveang ge pwr[0]) and (waveang le pwr[1]))
 ;p2nd=where((waveang ge pwr[0]/2) and (waveang le pwr[1]/2))
 ;print, wave
+;print, skycount
 
 	ifutrans=0.85d0*0.9   ; 0.9 is just arbitrary factor
 ;	comtrans=telmag*ifutrans*col*cam*ccd*0.5   ; have no idea why there is 0.5
@@ -512,6 +519,7 @@ endelse
 
 	skypc1st=t1st*skycount
 	skypc2nd=t2nd*skycount
+	print, skypc1st
 
 	wave2nd=wave*2
 	pc2nd=interpol(pc2nd, wave2nd, wave, spline=cspline)
@@ -524,7 +532,7 @@ endelse
 ;print, dark, exptime, npix_spa, pixel, dark_t, rn_t
 ;	print, rn_t
 
-
+;print, pc1st
 	signal=pc1st+pc2nd
 ;	signal=pc1st
 	skysignal=skypc1st+skypc2nd
@@ -567,7 +575,7 @@ endif
 	pskyfrac=nfrac_sky[idx]
 	prnfrac=nfrac_rn[idx]
 	waveout=pwave
-
+print, psnr
 	snrout=psnr
 	signalarr=psignal
 	skysignalarr=pskysignal
@@ -576,7 +584,6 @@ endif
 	skyfrac=pskyfrac
 	readnoisefrac=prnfrac
 	sourcefluxout=psourceflux
-
 
 if not keyword_set(noplot) then begin	
 	plrarr=['','_all','_blueside','_redside']
