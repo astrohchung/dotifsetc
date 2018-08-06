@@ -1,13 +1,13 @@
 
 # coding: utf-8
 
-# In[ ]:
+# In[149]:
 
 
 #!jupyter nbconvert --to script dotifsetc.ipynb
 
 
-# In[104]:
+# In[150]:
 
 
 import numpy as np
@@ -18,49 +18,24 @@ import math
 import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-from astropy.io import ascii
+import dotifs_util as util
+#np.set_printoptions(threshold=np.inf)
+np.set_printoptions(threshold=1000)
+#from astropy.io import ascii
 #from astropy.io import fits
-from astropy.table import Table
+#from astropy.table import Table
 #import scipy
 #from astropy.constants import h, c
 #%matplotlib inline
 #????
-t1=time.time()
+#t1=time.time()
+#plt.ioff()
 
 
-# In[91]:
+# In[151]:
 
 
-def mag2flux(mag, zero_pt=21.1, ABwave=None):
-    if ABwave != None:
-        return 10.**(-0.4*(mag+2.406+5*np.log10(ABwave)))
-    return 10.**(-0.4*(mag+zero_pt))
-
-
-t2=time.time()
-print('end def',(t2-t1))
-t1=t2
-
-
-# In[92]:
-
-
-def planck(wave, temp):
-    w=wave/1e8
-    c1 =  3.7417749e-5  #=2*!DPI*h*c*c   
-    c2 = 1.4387687    # =h*c/k
-    val=c2/w/temp
-    bbflux=c1/(w**5 * (math.e**val-1))*1e-8
-    return bbflux
-t2=time.time()
-print('end def',(t2-t1))
-t1=t2
-
-
-# In[93]:
-
-
-def gen_cal(wave, cdir, calname, cspline):
+def gen_cal(wave, cdir, calname):
     calfilename=cdir+'calibration_line_list_'+calname+'_171024.txt'
     calfile=ascii.read(calfilename, data_start=0, format='basic')
     lwave=calfile.columns[0]
@@ -81,60 +56,10 @@ def gen_cal(wave, cdir, calname, cspline):
         binsize=wave[nrst_idx+1]-wave[nrst_idx]
         nflux=lflux[i]/binsize
         flux_out[nrst_idx]=nflux*1e-17
-    return flux_out
-t2=time.time()
-print('end def',(t2-t1))
-t1=t2        
+    return flux_out     
 
 
-# In[94]:
-
-
-def flux2bpmag(flam, wave, filtertrans_input, filterwave=None,
-               errflag=None, flam_err=None, bpmag_err=None):
-
-    mintrans=0.00011
-    filtertrans=np.copy(filtertrans_input)
-    if filterwave != None:
-        #filtertrans=interpol(filtertrans, filterwave, wave)
-        filtertrans=scipy.interpolate.spline(filterwave, filtertrans, wave)
-        
-    filtertrans=(filtertrans >= mintrans)*filtertrans
-    
-    nwave=len(wave)
-
-    if len(filtertrans) != nwave:
-        errflag=1
-        return
-    
-    constc=constants.c
-    #constc=299792458.
-    #filtertrans=filtertrans.astype('d')
-
-    flux=np.sum(flam*filtertrans)
-    #print('bpflux')
-    #print(flux)
-    #print(filtertrans)
-#       refflam=replicate(3631.d-23, nwave)/wave^2.*!const.c*1.d10
-    #refflam=replicate(3631.d-23, nwave)/wave^2.*constc*1.d10
-    
-    refflam=np.ones(nwave)*3631e-23/(wave**2.)*constc*1e10
-    
-    refflux=np.sum(refflam*filtertrans)
-    #print(refflux)
-    #print(flux)
-    if flam_err != None:
-        err=(np.sum((flam_err*filtertrans)**2))**0.5
-        bpmag_err=-2.5/np.log(10)/flux*err
-
-    bpmag=-2.5*np.log10(flux/refflux)
-    return bpmag
-t2=time.time()
-print('end def',(t2-t1))
-t1=t2
-
-
-# In[95]:
+# In[152]:
 
 
 def return_littrow_ghost(wave, signal, ccdreflect, cam, g1stR, g1st, g0th):
@@ -156,16 +81,13 @@ def return_littrow_ghost(wave, signal, ccdreflect, cam, g1stR, g1st, g0th):
     
     lghost[nrst_idx]=tghost
     return lghost
-t2=time.time()
-print('end def',(t2-t1))
-t1=t2
 
 
-# In[96]:
+# In[153]:
 
 
 class readdata:
-    def __init__(self, cdir, category, item, skiprows=0):
+    def __init__(self, cdir, category, item, skiprows=0, datacol=1):
         cat_file=cdir+category+'/'+category+'.fmt'
         cat_str=np.loadtxt(cat_file, usecols=(0,1), dtype=str)
         cat_factor=np.loadtxt(cat_file, usecols=(2,3), dtype=float)
@@ -182,171 +104,44 @@ class readdata:
             ridx=np.flatnonzero(arr == item)
         
         data_file=cdir+category+'/'+cat_str[ridx[0],1]
-        print(data_file)
-        data=np.loadtxt(data_file, usecols=(0,1), dtype=float,
+
+        data=np.loadtxt(data_file, usecols=(0,datacol), dtype=float,
                         skiprows=skiprows)
+        self.name=cat_str[ridx[0],0]
 
         self.wave=data[:,0]*cat_factor[ridx[0],0]
         self.value=data[:,1]*cat_factor[ridx[0],1]
 
 
-# In[97]:
+# In[154]:
 
 
-def return_flux(source, wave, magnitude, bandt, z, exptime, wstep, cdir, 
-                bbtemp, stype, cspline):
- #Identify source type
-    consth=constants.h
-    constc=constants.c
-    src_check=source.split('_')
-    src_type=src_check[0]
-    skyflag=0
-    calflag=0
-    if len(src_check) == 2:
-        src_value=src_check[1]
-
-    
-    nwave=len(wave)
-
-    if src_type =='const':
-        magarr=np.ones(nwave)*magnitude
-        photone=consth*1e7*constc/(wave*1e-10)
-        sourceflux=mag2flux(magnitude, ABwave=wave)
-        temptitle='Constant Magnitude of '+str(magnitude)
-        calflag=1
-        #constflux=replicate(sourceflux[n_elements(sourceflux)/2], nwave)
-        #sourceflux=constflux
-    
-    if src_type =='gal':
-        #galtempname=cdir+'kc96/'+src_value+'_template.ascii'
-        #galfile=ascii.read(galtempname, data_start=0, format='basic')
-        gal=readdata(cdir, 'target_templates',src_value)
-        galwave=gal.wave*(1.+z)
-        galflam=gal.value/(1.+z)
-        galtempname=src_value
-        
-        #galwave=galfile.columns[0]*(1.+z)
-        #galflam=galfile.columns[1]/(1.+z)
-        if cspline:
-            galflux=scipy.interpolate.spline(galwave, galflam, wave) 
-        else:
-            galflux=np.interp(wave, galwave, galflam) 
-
-        bpmag=flux2bpmag(galflux, wave, bandt)
-
-        ratio=10.**(-0.4*(magnitude-bpmag))
-        sourceflux=ratio*galflux
-                
-        
-        #cflux=sourceflux
-        #cflux=galflux
-        #print('bpmag')
-        #print(bpmag)
-        
-        sourceflux=sourceflux*((wave >= min(galwave)) & (wave <= max(galwave)))
-        temptitle=src_value+'Type Galaxy'
-        temptitle=galtempname
-        skyflag=1
-    
-#    if src_type =='skyflat':
-
-    if src_type =='arcflat':
-        arcname=cdir+'Xenon_lamp.txt'
-        arcfile=ascii.read(arcname, data_start=0)
-        xwave=arcfile.columns[0]
-        xflam=arcfile.columns[1]
-        if cspline:
-            sourceflux=scipy.interpolate.spline(xwave, xflam, wave)*10.**(-12.)
-        else:
-            sourceflux=np.interp(wave, xwave, xflam)*10.**(-12.)
-        
-        sourceflux=sourceflux*((wave >= min(xwave)) & (wave <= max(xwave)))
-        temptitle='Xenon Arc Lamp'
-        calflag=1
-
-    if src_type =='blackbody':
-        sourceflux=planck(wave, bbtemp)*0.015**2.*np.pi/(1e5)**2
-        temptitle='Black Body (T='+str(bbtemp)+' K'
-        calflag=1
-
-    if src_type =='wavecal':
-        sourceflux=gen_cal(wave, cdir, src_value, cspline)
-        temptitle='Wavelength Calibration Source - '+src_value
-        calflag=1
-    
-    if src_type =='sky':
-        skyfilearr=['sky150701_newmoon_alt90.dat',
-                    'sky160311_newmoon_alt45.dat',
-                    'sky160311_halfmoon.dat',
-                    'sky160311_fullmoon.dat']
-        skyname=cdir+skyfilearr[stype]
-        #skyfile=ascii.read(skyname, data_start=37)
-        #skywave=skyfile['col1']*10
-        #skyflam=skyfile['col2']
-        skyfile=ascii.read(skyname, data_start=24, format='fast_basic', delimiter=' ')
-        skywave=skyfile.columns[0]*10
-        skyunitcount=skyfile.columns[1]
-        
-        skyphotone=consth*1e7*constc/(skywave*1e-10)
-        skycount=skyunitcount*1e-4*1e-4
-        skyflam=skycount*skyphotone
-        if cspline:
-            skyflux=scipy.interpolate.spline(skywave, skyflam, wave)
-        else:
-            skyflux=np.interp(wave, skywave, skyflam)
-        skyflux=skyflux*((wave >= min(skywave)) & (wave <= max(skywave)))
-        #print('skyflux')
-        #print(skyflux)
-        #print(constc)
-        
-        bpmag=flux2bpmag(skyflux, wave, bandt)
-        if magnitude != None:
-            ratio=10.**(-0.4*(magnitude-bpmag))
-            skyflux=ratio*skyflux
-        sourceflux=skyflux
-        temptitle=skyfilearr[stype]
-        calflag=1
-
-    
-    return sourceflux, temptitle, skyflag, calflag
-
-t2=time.time()
-print('end def',(t2-t1))
-t1=t2
+def interp(rdclass, xnew,itpkind='linear', itpfillvalue="extrapolate"):
+    itpfunc=scipy.interpolate.interp1d(rdclass.wave, rdclass.value, kind=itpkind, fill_value=itpfillvalue)
+    return itpfunc(xnew)#*((xnew >= min(rdclass.wave)) & (xnew <= max(rdclass.wave)))
 
 
-# In[98]:
-
-
+# In[164]:
 
 
 class dotifsetc(object):
-    def __init__(self, exptime=900, band='r', magnitude=20., skymagnitude=22,
-                 oname='snr.ps', galtemp=False, z=0., inputflux=None, inputwave=None, 
-                 #bbtemp=False, wavecal=False, skyflat=False, arcflat=False,
-                 source='gal_sc', bbtemp=5000, scflag=False, 
-                 stype=0, nofilter=False, ltrghost=False,
-                 noplot=False, plotrange=[3700, 7400], wstep=(3700./3000), pixel=2.5, 
-                 cspline=False, wavearr=None,
-                 waveout=None, snrout=None, signalarr=None, skysignalarr=None, noisearr=None, noiseskyarr=None, 
-                 dtypes=None, ofile='outdata.txt', 
+    def __init__(self, exptime=3600, band='r', magnitude=20., skymagnitude=22,
+                 oname='snr.ps', galtemp=False, z=0., source='gal_sc', stype=0, 
+                 wstep=(3700./3000), pixel=None, ltrghost=False, scflag=False, 
+                 wavearr=None, inputflux=None, inputwave=None, 
+                 plot=True, show=True, save=True, plotrange=[3700, 7400], cdir='./',
+#                  cdir='/home/hchung/dotifs/py_etc/',
+                 itpkind='linear', itpfillvalue="extrapolate", 
+#                  dtypes=None, ofile='outdata.txt', 
                  pri=3.6, sec=0.915, skysamplingsize=0.4**2*math.pi, dispersion=3700/(3000*15), pixelsize=15,
-                 npix_spa=5, rn=2, dark=0, plot=True,
-                 cdir='/home/hchung/dotifs/py_etc/',
+                 npix_spa=5, rn=2, dark=0, bbtemp=5000, basewaverange=[2900,8000.],
                 ):
         
         #define essential parameters as self attributes
+
         
-        self.exptime=exptime
-        self.band=band
-        self.magnitude=magnitude
-        self.z=z
-        self.wstep=wstep
-        self.pixel=pixel
-        self.skymagnitude=skymagnitude
-        self.oname=oname
-        self.source=source
-        
+        ncol=7
+        ncam=9
         
         t1=time.time()
 
@@ -362,51 +157,29 @@ class dotifsetc(object):
             wstep=pixel*pixelscale
         if pixel == None:
             pixel=wstep/pixelscale
+            
+        
+        self.exptime=exptime
+        self.band=band
+        self.magnitude=magnitude
+        self.z=z
+        self.wstep=wstep
+        self.pixel=pixel
+        self.skymagnitude=skymagnitude
+        self.oname=oname
+        self.source=source
+        self.show=show
+        self.save=save
+        self.ltrghost=ltrghost
+        self.scflag=scflag
+            
 
         stwave=plotrange[0]
         edwave=plotrange[1]
-
-
-        transfname=cdir+'trans150626.dat'
-        #data=ascii.read(transfile, format='no_header')
-        transfile=ascii.read(transfname, data_start=1, format='fast_basic', delimiter='\t')
-        wavemicron=np.array(transfile['micron'])
-        waveang=wavemicron*1e4
-        skytrans=np.array(transfile['SkyTrans'])
-        telmag=np.array(transfile['telandmag'])
-        col=np.array(transfile['col'])
-        cam=np.array(transfile['cam'])
-        #        ccd=np.array(transfile['ccd'])
-        g0th_o=np.array(transfile['0th'])
-        g1st_o=np.array(transfile['1st'])
-        g2nd_o=np.array(transfile['2nd'])
-
-        vphfname=cdir+'vph_160307_new.dat'
-        vphfile=ascii.read(vphfname, data_start=1, format='fast_basic', delimiter='\t')
-
-        coatfname=cdir+'altcoating.dat'
-        coatfile=ascii.read(coatfname, data_start=1, format='basic')     
-
-        ccdfname=cdir+'ccd_multi2.txt'
-        ccdfile=ascii.read(ccdfname, data_start=1, format='fast_basic', delimiter='\t')
-
-        bandname=cdir+band+'filter.dat'
-        bandfile=ascii.read(bandname, data_start=2, format='basic')
-
-        afiltername=cdir+'asahi_filter_01.dat'
-        afilterfile=ascii.read(afiltername, data_start=1, format='basic')
-        awave=afilterfile.columns[0]
-        atrans=afilterfile.columns[1]
-        awave=np.flip(awave,0)*10
-        atrans=np.flip(atrans,0)/100
-
-        t2=time.time()
-        print('done read',(t2-t1))
-        t1=t2
-
+        
         if wavearr == None:
-            nwave=int((waveang[-1]-waveang[0])/wstep)+1
-            wave=np.linspace(0, nwave-1, num=nwave)*wstep+waveang[0]
+            nwave=int((basewaverange[-1]-basewaverange[0])/wstep)+1
+            wave=np.linspace(0, nwave-1, num=nwave)*wstep+basewaverange[0]
             diffwave=wave-stwave
             abovezeroidx=np.nonzero(diffwave >=0)
             offwave=min(diffwave[abovezeroidx])
@@ -414,133 +187,79 @@ class dotifsetc(object):
         else:
             wave=np.array(wavearr)
             nwave=len(wavearr)
+        
+        tsky=interp(readdata(cdir, 'response_curves','sky'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        telmag=interp(readdata(cdir, 'response_curves','telmag'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        col=interp(readdata(cdir, 'response_curves','col'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        cam=interp(readdata(cdir, 'response_curves','cam'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        vph=interp(readdata(cdir, 'response_curves','vph'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        coat=interp(readdata(cdir, 'response_curves','coating', datacol=4),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        ccd=interp(readdata(cdir, 'response_curves','ccd'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        bandt=interp(readdata(cdir, 'response_curves',band),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        mg0th=interp(readdata(cdir, 'response_curves','mvph_0th'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        mg1st=interp(readdata(cdir, 'response_curves','mvph_1st'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        mg2nd=interp(readdata(cdir, 'response_curves','mvph_2nd'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        afilter=interp(readdata(cdir, 'response_curves','filter'),wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
 
+        col=col/0.995**(2*ncol)*coat**(2*ncol)
+        cam=cam/0.995**(2*ncam)*coat**(2*ncam)
 
-        idx=np.nonzero((wave > 3700) & (wave < 7400))
-
-
-        if cspline:
-            eff_vph_new=scipy.interpolate.spline(vphfile['wave_new'],
-                                                 vphfile['vph_trans'],
-                                                 waveang/10)
-            eff_coat=scipy.interpolate.spline(coatfile['wavenm'],
-                                              coatfile['t0'],
-                                              waveang/10)/100
-            ccd=scipy.interpolate.spline(ccdfile['Wave'],
-                                         ccdfile['QE'],
-                                         waveang/10)
-            bandt=scipy.interpolate.spline(bandfile.columns[0],
-                                          bandfile.columns[1],
-                                          wave)
-            afilter=scipy.interpolate.spline(awave, atrans, wave)
-        else:
-            eff_vph_new=np.interp(waveang/10,vphfile['wave_new'],vphfile['vph_trans'])
-            eff_coat=np.interp(waveang/10, coatfile['wavenm'], coatfile['t0'])/100
-            ccd=np.interp(waveang/10,ccdfile['Wave'],ccdfile['QE'])
-            bandt=np.interp(wave, bandfile.columns[0], bandfile.columns[1])
-            #afilter=np.interp(wave, afilterfile['col1']*10,afilterfile['col2']/100)
-            afilter=np.interp(wave, awave,atrans)
-
-
-        eff_vph_new=eff_vph_new*((waveang/10 >= min(vphfile['wave_new'])) & (waveang/10 <= max(vphfile['wave_new'])))
-        eff_coat=eff_coat*((waveang/10 >= min(coatfile['wavenm'])) & (waveang/10 <= max(coatfile['wavenm'])))
-        ccd=ccd*((waveang/10 >= min(ccdfile['Wave'])) & (waveang/10 <= max(ccdfile['Wave'])))
-        bandt=bandt*((wave >= min(bandfile.columns[0])) & (wave <= max(bandfile.columns[0])))
-        afilter=afilter*((wave >= min(awave)) & (wave <= max(awave)))
-
-
-        t2=time.time()
-        print('done eff cal',(t2-t1))
-        t1=t2
-
-
-        col=col/0.995**14.*eff_coat**14.
-        cam=cam/0.995**18.*eff_coat**18.
-
-        g1st=eff_vph_new
-        g0th=g1st/g1st_o*g0th_o
-        g2nd=g1st/g1st_o*g2nd_o
+        g1st=vph
+        g0th=vph/mg1st*mg0th
+        g2nd=g1st/mg1st*mg2nd
         g1stR=g1st*5*10.**(-5)
-
-
-        #waveang=tfile['micron']*1e4
-
-
 
         skyflag=0
         photone=consth*1e7*constc/(wave*1e-10)
-        sourceflux, temptitle, skyflag, calflag=return_flux(source, wave, magnitude, bandt, z, 
-                                                   exptime, wstep, cdir, bbtemp, stype, cspline)
+        
+        if (inputflux != None) & (inputwave != None):
+            if (len(inputflux) == len(inputwave)):
+                itpfunc=scipy.interpolate.interp1d(inputwave, inputflux, kind=itpkind, fill_value=itpfillvalue)
+                sourceflux=itpfunc(wave)
+        else:
+            sourceflux, temptitle, skyflag, calflag=self.return_flux(source, wave, magnitude, bandt, z, 
+                                                                exptime, wstep, cdir, bbtemp, stype, 
+                                                                itpkind=itpkind, itpfillvalue=itpfillvalue)
+            
 
-        #print(temptitle)
-        #skyflux, n1, n2=return_flux('sky', wave, skymagnitude, bandt, z, 
-        skyflux, n1, n2, n3=return_flux('sky', wave, skymagnitude, bandt, z,                             
-        #skyflux, , , =return_flux('sky', wave, skymagnitude, bandt, z,                             
-                                    exptime, wstep, cdir, bbtemp, stype, cspline)
+        skyflux, skytemptitle, n2, n3=self.return_flux('sky', wave, skymagnitude, bandt, z,                             
+                                    exptime, wstep, cdir, bbtemp, stype, itpkind=itpkind, itpfillvalue=itpfillvalue)
 
-
+        
         sourcecount=(sourceflux/photone)*wstep*telarea*exptime*skysamplingsize
         skycount=(skyflux/photone)*wstep*telarea*exptime*skysamplingsize
 
-        comtrans=telmag*ifutrans*col*cam*ccd
+        comtrans=telmag*ifutrans*col*afilter*cam*ccd
         t1st=comtrans*g1st
         t2nd=comtrans*g2nd*0.5   
 
-            #light from short wavelength are divided into double wavelength bin
-        tsky=skytrans
-        if cspline:
-            t1st=scipy.interpolate.spline(waveang, t1st, wave)
-            t2nd=scipy.interpolate.spline(waveang, t2nd, wave)
-            tsky=scipy.interpolate.spline(waveang, tsky, wave)
-        else:
-            t1st=np.interp(wave, waveang, t1st)
-            t2nd=np.interp(wave, waveang, t2nd)
-            tsky=np.interp(wave, waveang, tsky)
-        #print(afilter[idx])
-
-
-        t1st=t1st*afilter
-        t2nd=t2nd*afilter
-        #tsky=tsky*afilter
-        #print(tsky)
         pc1st=t1st*sourcecount
         pc2nd=t2nd*sourcecount
-
-
 
         if skyflag == 1:
             pc1st=pc1st*tsky
             pc2nd=pc2nd*tsky
 
-
         skypc1st=t1st*skycount
         skypc2nd=t2nd*skycount
 
-
-        ########
         wave2nd=wave*2
-        if cspline:
-            pc2nd=scipy.interpolate.spline(wave2nd, pc2nd, wave)
-            skypc2nd=scipy.interpolate.spline(wave2nd, skypc2nd, wave)
-        else:
-            pc2nd=np.interp(wave, wave2nd, pc2nd)
-            skypc2nd=np.interp(wave, wave2nd, skypc2nd)
+        itpfunc=scipy.interpolate.interp1d(wave2nd, pc2nd, kind=itpkind, fill_value=itpfillvalue)
+        pc2nd=itpfunc(wave)
+        
+        itpfunc=scipy.interpolate.interp1d(wave2nd, skypc2nd, kind=itpkind, fill_value=itpfillvalue)
+        skypc2nd=itpfunc(wave)
 
-        pc2nd=pc2nd*((wave >= min(wave2nd)) & (wave <= max(wave2nd)))
-        skypc2nd=skypc2nd*((wave >= min(wave2nd)) & (wave <= max(wave2nd)))
+
         if scflag == False:
             pc2nd=pc2nd*0.
             skypc2nd=skypc2nd*0.
 
         rn_t=rn*(npix_spa*pixel)**0.5
         dark_t=dark*exptime/3600.*(npix_spa*pixel)**0.5
-        #;print, dark, exptime, npix_spa, pixel, dark_t, rn_t
-        #;       print, rn_t
-
-
 
         signal=pc1st+pc2nd
-        #;       signal=pc1st
+
         skysignal=skypc1st+skypc2nd
         if calflag == 1:
             skysignal=skysignal *0.
@@ -564,8 +283,6 @@ class dotifsetc(object):
 
         #print(snr[idx])
 
-        
-
         #########
         idx=np.nonzero((wave >= stwave) & (wave <= edwave))
         self.sourceflux=sourceflux[idx]
@@ -582,17 +299,104 @@ class dotifsetc(object):
         self.skyfrac=nfrac_sky[idx]
         self.rnfrac=nfrac_rn[idx]
         self.temptitle=temptitle
+        self.skytemptitle=skytemptitle
         
-       
-        
-        #print(psnr)
-
-        t2=time.time()
-        print('done',(t2-t1))
-        t1=t2
         if plot:
             self.plot()
+            
+    def return_flux(self, source, wave, magnitude, bandt, z, exptime, wstep, cdir, 
+                    bbtemp, stype, itpkind='linear', itpfillvalue='extrapolate'):
+     #Identify source type
+        consth=constants.h
+        constc=constants.c
+        src_check=source.split('_')
+        src_type=src_check[0]
+        skyflag=0
+        calflag=0
+        if len(src_check) == 2:
+            src_value=src_check[1]
 
+
+        nwave=len(wave)
+
+        if src_type =='const':
+            magarr=np.ones(nwave)*magnitude
+            photone=consth*1e7*constc/(wave*1e-10)
+            sourceflux=util.mag2flux(magnitude, ABwave=wave)
+            temptitle='Constant Magnitude of '+str(magnitude)
+            calflag=1
+
+        if src_type =='gal':
+            gal=readdata(cdir, 'target_templates',src_value)
+            galwave=gal.wave*(1.+z)
+            galflam=gal.value/(1.+z)
+            galtempname=src_value
+
+            itpfunc=scipy.interpolate.interp1d(galwave, galflam, kind=itpkind,fill_value=itpfillvalue)
+            galflux=itpfunc(wave)
+
+            bpmag=util.flux2bpmag(galflux, wave, bandt)
+
+            ratio=10.**(-0.4*(magnitude-bpmag))
+            sourceflux=ratio*galflux
+
+            sourceflux=sourceflux*((wave >= min(galwave)) & (wave <= max(galwave)))
+            sfb_str='m$_{'+str(self.band)+'}$ = '+str(self.magnitude)+' mag/arcsec$^{2}$'
+            z_str='z='+str(self.z)
+            temptitle=src_value+', ('+sfb_str+', '+z_str+')'
+            skyflag=1
+
+    #    if src_type =='skyflat':
+
+        if src_type =='arcflat':
+            arcfile=readdata(cdir, 'calibration',src_value)
+            xwave=arcfile.columns[0]
+            xflam=arcfile.columns[1]
+
+            itpfunc=scipy.interpolate.interp1d(xwave, xflam , kind=itpkind, fill_value=itpfillvalue)
+            sourceflux=itpfunc(wave)
+
+            sourceflux=sourceflux*((wave >= min(xwave)) & (wave <= max(xwave)))
+            temptitle='Xenon Arc Lamp'
+            calflag=1
+
+        if src_type =='blackbody':
+            sourceflux=util.planck(wave, bbtemp)*0.015**2.*np.pi/(1e5)**2
+            temptitle='Black Body (T='+str(bbtemp)+' K'
+            calflag=1
+
+        if src_type =='wavecal':
+            sourceflux=gen_cal(wave, cdir, src_value)
+            temptitle='Wavelength Calibration Source - '+src_value
+            calflag=1
+
+        if src_type =='sky':
+            skyfile=readdata(cdir, 'sky_templates',stype)
+
+            skywave=skyfile.wave
+            skyunitcount=skyfile.value
+
+            skyphotone=consth*1e7*constc/(skywave*1e-10)
+            skycount=skyunitcount*1e-4*1e-4
+            skyflam=skycount*skyphotone
+
+            itpfunc=scipy.interpolate.interp1d(skywave, skyflam, kind=itpkind, fill_value=itpfillvalue)
+            skyflux=itpfunc(wave)
+
+            skyflux=skyflux*((wave >= min(skywave)) & (wave <= max(skywave)))
+
+            bpmag=util.flux2bpmag(skyflux, wave, bandt)
+            if magnitude != None:
+                ratio=10.**(-0.4*(magnitude-bpmag))
+                skyflux=ratio*skyflux
+            sourceflux=skyflux
+            sfb_str='m$_{'+str(self.band)+'}$ = '+str(self.skymagnitude)+' mag/arcsec$^{2}$'
+            temptitle=skyfile.name+', ('+sfb_str+')'
+            calflag=1
+
+        return sourceflux, temptitle, skyflag, calflag
+
+            
     def plot(self):
         
         matplotlib.rcParams.update({'font.size':15})
@@ -606,18 +410,12 @@ class dotifsetc(object):
 
         matplotlib.rc('font', **font)
 
-
         xlim=[min(self.wave)-wavemar,max(self.wave)+wavemar]
 
         plt.clf
         fig=plt.figure(figsize=(8.27,11.69))
-        #gs1=matplotlib.gridspec.GridSpec(8,12)
         gs1=gridspec.GridSpec(4,1, left=None, bottom=0.1, right=0.95, top=0.82, wspace=None, hspace=None)
-        #gs1.tight_layout(fig, rect=[0,0,0.01,1])
-        #gs1.subplots_adjust(hspace=0.4, wspace=0.4)
         gs1.update(hspace=0.0)
-        #gs1.tight_layout(fig, rect=[0,0,1,0.5])
-        #ax=plt.subplot(211)
         ax0=plt.subplot(gs1[0])
         ax0.plot(self.wave, self.sourceflux/1e-17, 'k', linestyle='-')
         ax0.set_xlim(xlim)
@@ -628,11 +426,8 @@ class dotifsetc(object):
 
         ax1=plt.subplot(gs1[1])
         ax1.plot(self.wave, self.snr, 'k', linestyle='-')
-        #ax.set_ylabel("S/N", fontsize=20)
-        #ax.set_xlabel("Wavelength $\AA$ ", fontsize=20)
         ax1.set_ylabel("S/N")
         ax1.grid(b=True, which='major', color='k', linestyle='--', linewidth=1)
-        #ax1.xaxis.set_minor_locator(plt.MultipleLocator(200))
         ax1.set_xlim(xlim)
 
         ax2=plt.subplot(gs1[2])
@@ -651,14 +446,23 @@ class dotifsetc(object):
         ax0.tick_params(labelbottom=False)#, length=0)
         ax1.tick_params(labelbottom=False)#, length=0)
         ax2.tick_params(labelbottom=False)#, length=0)
+        
+        ltr_str='Off'
+        sc_str='Off'
+        if self.ltrghost == True:
+            ltr_str='On'
+        if self.scflag == True:
+            sc_str='On'
+        opt_str=', Littrow Ghost: '+ltr_str+', 2nd order contamination: '+sc_str
 
         remarks=[time.asctime( time.localtime(time.time()) ),
                  'DOTIFS S/N Calculator (ver 26/07/18)',
-                 'Galaxy Template: '+self.temptitle,
-                 'Surface Birghtness: m$_{'+str(self.band)+'}$ = '+str(self.magnitude)+' mag/arcsec$^{2}$',
-                 'Redshift: z='+str(self.z),
+                 'Target: '+self.temptitle,
+#                 'Surface Birghtness: m$_{'+str(self.band)+'}$ = '+str(self.magnitude)+' mag/arcsec$^{2}$',
+#                 'Redshift: z='+str(self.z),
+                 'Sky (mssep_mtsep_malt_talt): '+self.skytemptitle,
                  'Exposure time: '+str(self.exptime)+' sec',
-                 '$\Delta\lambda$: '+str(round(self.wstep, 3))+ '$\AA$ ('+str(round(self.pixel,3))+' pixels)',
+                 '$\Delta\lambda$: '+str(round(self.wstep, 3))+ '$\AA$ ('+str(round(self.pixel,3))+' pixels)'+opt_str,
                 ]
 
         remarks2='\n'.join(remarks)
@@ -670,32 +474,28 @@ class dotifsetc(object):
 
         yitv=0.02
         ax = fig.add_axes([0,0,1,1], facecolor="None", frameon=False, label="")
-        #ax.text(0.5,0.5, 'AAA')
         ax.tick_params(labelbottom=False, labelleft=False, length=0)
-        #ax.text(0.9, 0.9, 'TEST',horizontalalignment='right')
         ax.text(0.95, 0.83, remarks2,horizontalalignment='right', size=12, linespacing=1)
-        #for i in range(nremarks):
-            #ax.text(0.95, 0.83+yitv*i, remarks[nremarks-i-1],horizontalalignment='right', size=10)
+
+        
+#         if self.show == True:
+#             plt.show()
+
+        if self.save == True:
+            fig.savefig(self.oname, bbox_inches='tight')
+        
+        
+def aaa(self,
+        oname='snr.ps', galtemp=False, z=0., source='gal_sc', stype=0, 
+        wstep=(3700./3000), pixel=None, ltrghost=False, scflag=False, 
+        wavearr=None, inputflux=None, inputwave=None, 
+        plot=True, plotrange=[3700, 7400], cdir='./'):
+    return
 
 
-        val=ax2.get_ylim()
-        print(val)
-
-        val=ax2.get_yticks()
-        print(val)
-
-        #np.set_printoptions(threshold=np.nan)
-
-        plt.show()
+# In[165]:
 
 
-        fig.savefig("foo.pdf", bbox_inches='tight')
-        fig.savefig("foo.ps", bbox_inches='tight')
-
-
-# In[99]:
-
-
-#r1=dotifsetc()
-#print(r1.snr)
+r1=dotifsetc(exptime=3600, pixel=3, magnitude=20, plot=True, save=False)
+#r1=dotifsetc(exptime=3600, pixel=3, magnitude=20)
 
