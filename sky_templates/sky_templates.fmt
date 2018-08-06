@@ -1,0 +1,10 @@
+#list of sky templates 
+#template name, filename, wavefactor(to Angstrom), arbitrary factor
+#Sky name convention: sky_mssep_mtsep_malt_talt.dat
+##mssep: moon phase in degree.(separation of sun and moon) 0=newmoon, 180=fullmoon
+##mtsep: separation between target and moon in degree
+##malt: altitude of moon in degree
+##talt: altitude of target
+sky_p0_p135_n90_p45 sky160311_newmoon_alt45.dat 10 1
+sky_p90_p90_p45_p45 sky160311_halfmoon.dat 10 1
+sky_p180_p90_p45_p45 sky160311_fullmoon.dat 10 1

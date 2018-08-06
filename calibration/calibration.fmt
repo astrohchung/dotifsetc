@@ -1,0 +1,6 @@
+#list of calibration lamps with relative intensities
+#lamp name, filename, wavefactor(to Angstrom), arbitraryfactor
+HgNe calibration_line_list_HgNe_171024.txt 1 1
+Kr calibration_line_list_Kr_171024.txt 1 1
+KrHgNe calibration_line_list_KrHgNe_171024.txt 1 1
+Xenon Xenon_lamp.txt 1 1e-12

@@ -1,0 +1,14 @@
+#list of target templates 
+#template name, filename, wavefactor(to Angstrom), fluxfactor(to 10^-17 erg/s/cm2/ang)
+bulge bulge_template.ascii 1 1
+elliptical elliptical_template.ascii 1 1
+s0 s0_template.ascii 1 1
+sa sa_template.ascii 1 1
+sb sb_template.ascii 1 1
+sc sc_template.ascii 1 1
+starb1 starb1_template.ascii 1 1
+starb2 starb2_template.ascii 1 1
+starb3 starb3_template.ascii 1 1
+starb4 starb4_template.ascii 1 1
+starb5 starb5_template.ascii 1 1
+starb6 starb6_template.ascii 1 1
