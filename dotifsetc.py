@@ -1,19 +1,57 @@
 
 # coding: utf-8
 
-# In[149]:
+# In[ ]:
 
 
-#!jupyter nbconvert --to script dotifsetc.ipynb
+# ###############################################################################
+ 
+# Copyright (C) 2018, Haeun Chung
+# E-mail: hchung@astro.snu.ac.kr
 
 
-# In[150]:
+
+# This software is provided as is without any warranty whatsoever.
+# Permission to use, for non-commercial purposes is granted.
+# Permission to modify for personal or internal use is granted,
+# provided this copyright and disclaimer are included unchanged
+# at the beginning of the file. All other rights are reserved.
+# ###############################################################################
+
+# NAME: dotifsetc()
+  
+# PURPOSE:
+   
+# CALLING SEQUENCE:
+#     from dotifsetc import dotifsetc
+#     outname='dotifs_snr.ps'
+#     result=dotifsetc(exptime=3600, band='r', magnitude=20., skymagnitude=22,
+#                      oname='dotifs_snr.ps', z=0., source='gal_sc', stype=0, 
+#                      wstep=(3700./3000), pixel=None, ltrghost=False, 
+#                      scflag=False, wavearr=None, inputflux=None, 
+#                      inputwave=None, show=False, save=True, 
+#                      plotrange=[3700, 7400],
+#                      itpkind='linear', itpfillvalue="extrapolate", 
+#                  pri=3.6, sec=0.915, skysamplingsize=0.4**2*math.pi, dispersion=3700/(3000*15), pixelsize=15,
+#                  npix_spa=5, rn=2, dark=0, bbtemp=5000, basewaverange=[2900,8000.],
+#                 ):
+
+
+# In[38]:
+
+
+#!jupyter nbconvert --no-prompt --to script dotifsetc.ipynb 
+
+
+# In[21]:
 
 
 import numpy as np
 from scipy import constants
 import scipy.interpolate
 import time
+from os import path
+import inspect
 import math
 import matplotlib
 import matplotlib.gridspec as gridspec
@@ -32,7 +70,7 @@ np.set_printoptions(threshold=1000)
 #plt.ioff()
 
 
-# In[151]:
+# In[22]:
 
 
 def gen_cal(wave, cdir, calname):
@@ -59,7 +97,7 @@ def gen_cal(wave, cdir, calname):
     return flux_out     
 
 
-# In[152]:
+# In[23]:
 
 
 def return_littrow_ghost(wave, signal, ccdreflect, cam, g1stR, g1st, g0th):
@@ -83,7 +121,7 @@ def return_littrow_ghost(wave, signal, ccdreflect, cam, g1stR, g1st, g0th):
     return lghost
 
 
-# In[153]:
+# In[24]:
 
 
 class readdata:
@@ -113,7 +151,7 @@ class readdata:
         self.value=data[:,1]*cat_factor[ridx[0],1]
 
 
-# In[154]:
+# In[25]:
 
 
 def interp(rdclass, xnew,itpkind='linear', itpfillvalue="extrapolate"):
@@ -121,15 +159,16 @@ def interp(rdclass, xnew,itpkind='linear', itpfillvalue="extrapolate"):
     return itpfunc(xnew)#*((xnew >= min(rdclass.wave)) & (xnew <= max(rdclass.wave)))
 
 
-# In[164]:
+# In[26]:
 
 
 class dotifsetc(object):
     def __init__(self, exptime=3600, band='r', magnitude=20., skymagnitude=22,
-                 oname='snr.ps', galtemp=False, z=0., source='gal_sc', stype=0, 
+                 oname='dotifs_snr.ps', z=0., source='gal_sc', stype=0, 
                  wstep=(3700./3000), pixel=None, ltrghost=False, scflag=False, 
                  wavearr=None, inputflux=None, inputwave=None, 
-                 plot=True, show=True, save=True, plotrange=[3700, 7400], cdir='./',
+                 show=False, save=True, plotrange=[3700, 7400], 
+#                  cdir='./',
 #                  cdir='/home/hchung/dotifs/py_etc/',
                  itpkind='linear', itpfillvalue="extrapolate", 
 #                  dtypes=None, ofile='outdata.txt', 
@@ -143,8 +182,7 @@ class dotifsetc(object):
         ncol=7
         ncam=9
         
-        t1=time.time()
-
+        cdir=path.dirname(path.realpath(__file__))+'/'
         consth=constants.h
         constc=constants.c
         temptitle='None'
@@ -301,7 +339,7 @@ class dotifsetc(object):
         self.temptitle=temptitle
         self.skytemptitle=skytemptitle
         
-        if plot:
+        if show | save:
             self.plot()
             
     def return_flux(self, source, wave, magnitude, bandt, z, exptime, wstep, cdir, 
@@ -455,7 +493,7 @@ class dotifsetc(object):
             sc_str='On'
         opt_str=', Littrow Ghost: '+ltr_str+', 2nd order contamination: '+sc_str
 
-        remarks=[time.asctime( time.localtime(time.time()) ),
+        remarks=[time.asctime( time.localtime(time.time()) )+' ('+self.oname+')',
                  'DOTIFS S/N Calculator (ver 26/07/18)',
                  'Target: '+self.temptitle,
 #                 'Surface Birghtness: m$_{'+str(self.band)+'}$ = '+str(self.magnitude)+' mag/arcsec$^{2}$',
@@ -478,24 +516,16 @@ class dotifsetc(object):
         ax.text(0.95, 0.83, remarks2,horizontalalignment='right', size=12, linespacing=1)
 
         
-#         if self.show == True:
-#             plt.show()
+        if self.show == True:
+                plt.show()
 
         if self.save == True:
             fig.savefig(self.oname, bbox_inches='tight')
-        
-        
-def aaa(self,
-        oname='snr.ps', galtemp=False, z=0., source='gal_sc', stype=0, 
-        wstep=(3700./3000), pixel=None, ltrghost=False, scflag=False, 
-        wavearr=None, inputflux=None, inputwave=None, 
-        plot=True, plotrange=[3700, 7400], cdir='./'):
-    return
 
 
-# In[165]:
+# In[ ]:
 
 
-r1=dotifsetc(exptime=3600, pixel=3, magnitude=20, plot=True, save=False)
+#r1=dotifsetc(exptime=3600, pixel=3, magnitude=20, plot=True, save=False)
 #r1=dotifsetc(exptime=3600, pixel=3, magnitude=20)
 
