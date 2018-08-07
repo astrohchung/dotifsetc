@@ -22,3 +22,5 @@ test
 *.po*
 *.pe*
 *.flag
+*.ps
+*.pdf
