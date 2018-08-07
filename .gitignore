@@ -24,3 +24,6 @@ test
 *.flag
 *.ps
 *.pdf
+__pycache__
+.ipynb*
+*.ipynb
