@@ -244,7 +244,7 @@
 #             and tested against original version.
 
 
-# In[12]:
+# In[1]:
 
 
 #!jupyter nbconvert --no-prompt --to script dotifsetc.ipynb 
@@ -766,7 +766,7 @@ class dotifsetc(object):
 
         
         remarks=[time.asctime(time.localtime(time.time()) )+' ('+self.oname+')',
-                 'DOTIFS S/N Calculator (ver 26/07/18)',
+                 'DOTIFS S/N Calculator (ver 2.0.1)',
                  'Target: '+self.temptitle,
                  'Sky (mssep_mtsep_malt_talt): '+self.skytemptitle,
                  'Exposure time: '+str(self.exptime)+' sec',
