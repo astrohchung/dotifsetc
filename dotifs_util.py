@@ -1,36 +1,33 @@
 
 # coding: utf-8
 
-# In[ ]:
+# In[14]:
 
 
 #!jupyter nbconvert --to script dotifs_util.ipynb
 
 
-# In[ ]:
+# In[2]:
 
 
 import numpy as np
 from scipy import constants
 import scipy.interpolate
 import math
-import matplotlib
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 #np.set_printoptions(threshold=np.inf)
 np.set_printoptions(threshold=1000)
 
 
-# In[ ]:
+# In[11]:
 
 
 def mag2flux(mag, zero_pt=21.1, ABwave=None):
-    if ABwave != None:
-        return 10.**(-0.4*(mag+2.406+5*np.log10(ABwave)))
+    if np.any(ABwave != None):
+         return 10.**(-0.4*(mag+2.406+5*np.log10(ABwave)))
     return 10.**(-0.4*(mag+zero_pt))
 
 
-# In[ ]:
+# In[4]:
 
 
 def planck(wave, temp):
@@ -42,7 +39,7 @@ def planck(wave, temp):
     return bbflux
 
 
-# In[ ]:
+# In[5]:
 
 
 def flux2bpmag(flam, wave, filtertrans_input, filterwave=None,
