@@ -23,6 +23,8 @@ test
 *.pe*
 *.flag
 *.ps
+!dotifs_etc_ex.ps
+!3600_ex.ps
 *.pdf
 __pycache__
 .ipynb*
