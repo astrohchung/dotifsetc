@@ -26,6 +26,7 @@ test
 !dotifs_etc_ex.ps
 !3600_ex.ps
 *.pdf
+*.png
 __pycache__
 .ipynb*
 *.ipynb

@@ -10,7 +10,7 @@ from dotifsetc import dotifsetc
 res=dotifsetc(exptime=900, source='obj_sc', z=0.04,
 		magnitude=17, skymagnitude=22, stype=1,
 		pixel=2.5,
-		oname='dotifs_etc.ps', save=True)
+		oname='dotifs_etc.jpg', save=True)
 
 #change exposure time to 3600 sec
 #change output name as '3600.ps'
@@ -19,7 +19,7 @@ res=dotifsetc(exptime=900, source='obj_sc', z=0.04,
 #turn off sky subtraction
 #change sky g band magnitude to 18 
 res.exptime=3600
-res.oname='3600.ps'
+res.oname='3600.jpg'
 res.band='g'
 res.skymagnitude=18
 res.skysub=False
