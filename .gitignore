@@ -29,4 +29,3 @@ test
 *.png
 __pycache__
 .ipynb*
-*.ipynb
