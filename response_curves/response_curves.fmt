@@ -5,7 +5,8 @@ g gfilter.dat 1 1
 r rfilter.dat 1 1
 i ifilter.dat 1 1
 z zfilter.dat 1 1
-sky sky.dat 1 1
+sky sky_extinction.dat 10 1
+skytrans sky_transmission_eso_sky_calc.dat 1 1
 telmag telmag.dat 1 1
 col col.dat 1 1
 cam cam.dat 1 1

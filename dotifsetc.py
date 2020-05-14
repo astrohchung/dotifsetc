@@ -1,7 +1,7 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# !jupyter nbconvert --no-prompt --to python dotifsetc.ipynb 
 
 
 # ###############################################################################
@@ -117,6 +117,8 @@
 #             p180_p90_p45_p45: fullmooon. 
 #                 moon and target altitude = 45 degrees.
 #                 separation between moon and target = 90 degrees.
+#     AIRMASS: airmass of the target. This airmass value is used to calculate
+#         the sky transmission using the sky extinction data (default: 1)
 #     WSTEP: wavelength step size of the output spectra in Angstrom.
 #         (default: 1.233 angstrom)
 #     PIXEL: wavelength step size in pixel unit. if this pixel parameter is 
@@ -146,6 +148,22 @@
 #         in unit of erg/s/cm^2/Ang. inputwave should be provided as well.
 #         (default: None)
 #     INPUTWAVE: wavelength of inputflux in angstrom. (default: None)
+#     SKYTRANS: set this keyword to the bandname of the sky transmission file
+#          as written in the response_curves.fmt file, if a user wants to use
+#          sky transmission file instead of sky extinction file. 
+#          For example, if set this keyword as 'default', then the sky 
+#          transmission is calculated from the extinction data 
+#          ('sky_extinction.dat'). The data format of the extinction data 
+#          should be 'wavelength' at column 1 and 'mag/airmass' at column 2.
+#          If set this keyword as 'skytrans', then the 
+#          'sky_transmission_eso_sky_calc.dat' will be used. AIRMASS keyword
+#          will be ignored in this case.
+#          (default: False)
+#     RMEDSN: set this keyword to return an median SN value among band. 
+#         Range of band is determined by BAND parameter. Two bands are 
+#         supported: 'g' and 'r' (default: False)
+#     TSCALE: user can scale the entire throughput of the optics by changing
+#         this parameter (default: 1)
 #     SHOW: set this keyword to view the result with matplotlib window.
 #         (default: False)
 #     SAVE: set this keyword to save the plot in the output file. 
@@ -167,8 +185,16 @@
 #         (scipy.interpolate.interp1d)
 #     .PRI: telescope primary mirror diameter in meter (default: 3.6)
 #     .SEC: telescope secondary mirror diameter in meter (default: 0.915)
-#     .SKYSAMPLINGSIZE: size of one spatial element in square arcsecond. 
+#     .SOURCESAMPLINGSIZE: size of one spatial element in square arcsecond. 
+#         Useful to set this as 1 if one wants to use this exposure time
+#         calculator for single object. For exmaple, the calculator can be
+#         used to estimate the S/N of MOS target, by setting this keyword as
+#         1, MAGNITUDE as a fiber magnitude and SKYSAMPLINGSIZE as a field of
+#         view of fiber.
 #         (default: 0.831384) (size of hexagon with 0.4 arcsecond side)
+#     .SKYSAMPLINGSIZE: set this keyword to the size of spatial element. 
+#         if None, the value will be the same as SOURCESAMPLINGSIZE.
+#         (default: None) 
 #     .DISPERSION: dispersion of the spectrograph in Angstrom per micron.
 #         (default: 0.082222) 
 #     .PIXELSIZE: size of CCD pixel in micron. (default: 15)
@@ -242,15 +268,17 @@
 #             gen_cal scheme to add non-zero flux to every pixel
 #     v2.0.0: Haeun Chung, 2018. Aug. 8, Translated from IDL to Python 
 #             and tested against original version.
-
-
-# In[1]:
-
-
-#!jupyter nbconvert --no-prompt --to script dotifsetc.ipynb 
-
-
-# In[3]:
+#     v2.1.0: Haeun Chung, 2020. May 14, Steward Observatory (Day 57 of 
+#             WFH due to COVID-19)
+#             - add airmass parameter. Now sky transmission can be 
+#             calculated from sky extinction data (mag/airmass). Direct 
+#             use of sky transmission data is also available. 
+#             - add rmedsn parameter
+#             - add tscale parameter
+#             - add sourcesampling and skysampling parameter
+#             - change interpolation method of sky template file. Now 
+#             log10(skyflam) value is interpolated to avoid
+#             negative output from cubic interpolation.
 
 
 import numpy as np
@@ -265,9 +293,6 @@ import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import dotifs_util as util
-
-
-# In[4]:
 
 
 def gen_cal(wave, cdir, calname):
@@ -293,9 +318,6 @@ def gen_cal(wave, cdir, calname):
     return flux_out     
 
 
-# In[5]:
-
-
 def return_littrow_ghost(wave, signal, ccdreflect, cam, g1stR, g1st, g0th):
     rsub=0.01 #;reflectivity of the grating substrate
     lghost1=np.sum(signal*ccdreflect*cam*cam*g1stR)
@@ -313,9 +335,6 @@ def return_littrow_ghost(wave, signal, ccdreflect, cam, g1stR, g1st, g0th):
     
     lghost[nrst_idx]=tghost
     return lghost
-
-
-# In[6]:
 
 
 class readdata:
@@ -345,9 +364,6 @@ class readdata:
         self.value=data[:,1]*cat_factor[ridx[0],1]
 
 
-# In[7]:
-
-
 def interp(rdclass, xnew,itpkind='cubic', itpfillvalue="extrapolate"):
     itpfunc=interp1d(rdclass.wave, rdclass.value, 
                                        kind=itpkind, fill_value=itpfillvalue)
@@ -355,14 +371,14 @@ def interp(rdclass, xnew,itpkind='cubic', itpfillvalue="extrapolate"):
 #*((xnew >= min(rdclass.wave)) & (xnew <= max(rdclass.wave)))
 
 
-# In[8]:
-
-
 class dotifsetc(object):
     def __init__(self, exptime=3600, band='r', magnitude=20., skymagnitude=22,
                  oname='dotifs_snr.ps', source='obj_sc', z=0., stype=0, 
+                 airmass=1,
                  wstep=(3700./3000), pixel=None, ltrghost=False, soc=False, 
-                 skysub=True, wavearr=None, inputflux=None, inputwave=None, 
+                 skysub=True, wavearr=None, inputflux=None, inputwave=None,
+                 skysamplingsize=None, sourcesamplingsize=(3**(1.5))*(0.4**2),
+                 skytrans=False, rmedsn=False, tscale=1,
                  show=False, save=False, plotrange=[3700, 7400], run=True
                 ):
         
@@ -388,12 +404,20 @@ class dotifsetc(object):
         self.wavearr=wavearr
         self.inputflux=inputflux
         self.inputwave=inputwave
+        self.skytrans=skytrans
+        self.airmass=airmass
+        self.tscale=tscale
+        self.rmedsn=rmedsn
         
 #         optional input parameters
         self.itpkind='cubic'
         self.pri=3.6
         self.sec=0.915
-        self.skysamplingsize=(3**(1.5))*(0.4**2)
+        self.sourcesamplingsize=sourcesamplingsize
+        if skysamplingsize == None:
+            self.skysamplingsize=sourcesamplingsize
+        else:
+            self.skysamplingsize=skysamplingsize
         self.dispersion=3700/(3000*15)
         self.pixelsize=15
         self.npix_spa=5
@@ -439,10 +463,14 @@ class dotifsetc(object):
         stype=self.stype
         wstep=self.wstep
         pixel=self.pixel
+        skytrans=self.skytrans
+        airmass=self.airmass
 
         plotrange=self.plotrange
         itpkind=self.itpkind
+        sourcesamplingsize=self.sourcesamplingsize
         skysamplingsize=self.skysamplingsize
+    
         
         wavearr=self.wavearr
         inputflux=self.inputflux
@@ -470,8 +498,15 @@ class dotifsetc(object):
             nwave=len(wavearr)
 
         
-        tsky=interp(readdata(cdir, 'response_curves','sky'),
-                    wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        if skytrans:
+            tsky=interp(readdata(cdir, 'response_curves',skytrans),
+                        wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
+        else:
+            sky_data=readdata(cdir, 'response_curves', 'sky')
+            sky_data.value=10**(-sky_data.value/2.5*airmass)
+            tsky=interp(sky_data, wave, 
+                        itpkind=itpkind, itpfillvalue=itpfillvalue)
+        
         telmag=interp(readdata(cdir, 'response_curves','telmag'),
                       wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
         col=interp(readdata(cdir, 'response_curves','col'),
@@ -495,7 +530,7 @@ class dotifsetc(object):
         afilter=interp(readdata(cdir, 'response_curves','filter'),
                        wave,itpkind=itpkind, itpfillvalue=itpfillvalue)
 
-        col=col/0.995**(2*self.ncol)*coat**(2*self.ncol)
+        col=col/0.995**(2*self.ncol)*coat**(2*self.ncol)*self.tscale
         cam=cam/0.995**(2*self.ncam)*coat**(2*self.ncam)
 
         g1st=vph
@@ -521,7 +556,7 @@ class dotifsetc(object):
         rtval=self.return_flux('sky', wave, skymagnitude, bandt)
         skyflux, skytemptitle, n2, n3 = rtval
         
-        sourcecount=(sourceflux/photone)*wstep*telarea*exptime*skysamplingsize
+        sourcecount=(sourceflux/photone)*wstep*telarea*exptime*sourcesamplingsize
         skycount=(skyflux/photone)*wstep*telarea*exptime*skysamplingsize
 
         comtrans=telmag*ifutrans*col*afilter*cam*ccd
@@ -579,7 +614,7 @@ class dotifsetc(object):
             signal=signal+skysignal
             noise_poisson=(signal+rn_t**2+dark_t**2)**0.5
             noise=noise_poisson
-                 
+            
         snr=signal/noise
 
         idx=np.nonzero((wave >= stwave) & (wave <= edwave))
@@ -590,6 +625,16 @@ class dotifsetc(object):
         self.noise=noise[idx]
         self.temptitle=temptitle
         self.skytemptitle=skytemptitle
+        
+        
+        if self.rmedsn:
+            if band=='r':
+                wrr=[5500,7000]
+            if band=='g':
+                wrr=[3880,5500]
+            widx=np.nonzero((self.wave > wrr[0]) & (self.wave < wrr[1]) & np.isfinite(self.snr))
+            medsnv=np.median(self.snr[widx])
+            return medsnv
         
         if self.show | self.save:
             self.plot()
@@ -685,9 +730,10 @@ class dotifsetc(object):
             skycount=skyunitcount*1e-4*1e-4
             skyflam=skycount*skyphotone
 
-            itpfunc=interp1d(skywave, skyflam, kind=itpkind, 
+            
+            itpfunc=interp1d(skywave, np.log10(skyflam), kind=itpkind, 
                              fill_value=itpfillvalue)
-            skyflux=itpfunc(wave)
+            skyflux=10**itpfunc(wave)
 
             skyflux=skyflux*((wave >= min(skywave)) & (wave <= max(skywave)))
 
@@ -766,7 +812,7 @@ class dotifsetc(object):
 
         
         remarks=[time.asctime(time.localtime(time.time()) )+' ('+self.oname+')',
-                 'DOTIFS S/N Calculator (ver 2.0.1)',
+                 'DOTIFS S/N Calculator (ver 26/07/18)',
                  'Target: '+self.temptitle,
                  'Sky (mssep_mtsep_malt_talt): '+self.skytemptitle,
                  'Exposure time: '+str(self.exptime)+' sec',
