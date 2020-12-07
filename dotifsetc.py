@@ -294,10 +294,11 @@ import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
-if __name__=='__main__':
-    import dotifs_util as util
-else:
-    from . import dotifs_util as util
+# if __name__=='__main__':
+#     import dotifs_util as util
+# else:
+#     from . import dotifs_util as util
+from .dotifs_util import mag2flux, flux2bpmag, planck
 
 
 def gen_cal(wave, cdir, calname):
@@ -675,7 +676,7 @@ class dotifsetc(object):
 
         if src_type =='const':
             magarr=np.ones(nwave)*magnitude
-            sourceflux=util.mag2flux(magarr, ABwave=wave)
+            sourceflux=mag2flux(magarr, ABwave=wave)
             temptitle='Constant Magnitude of '+str(magnitude)
             skyflag=0
             calflag=1
@@ -690,7 +691,7 @@ class dotifsetc(object):
                              fill_value=itpfillvalue)
             galflux=itpfunc(wave)
 
-            bpmag=util.flux2bpmag(galflux, wave, bandt)
+            bpmag=flux2bpmag(galflux, wave, bandt)
 
             ratio=10.**(-0.4*(magnitude-bpmag))
             sourceflux=ratio*galflux
@@ -723,7 +724,7 @@ class dotifsetc(object):
 
         if src_type =='blackbody':
             bbtemp=float(src_value)
-            sourceflux=util.planck(wave, bbtemp)*0.015**2.*np.pi/(1e5)**2*1e-6
+            sourceflux=planck(wave, bbtemp)*0.015**2.*np.pi/(1e5)**2*1e-6
             temptitle='Black Body (T='+str(bbtemp)+' K'
             skyflag=0
             calflag=1
@@ -751,7 +752,7 @@ class dotifsetc(object):
 
             skyflux=skyflux*((wave >= min(skywave)) & (wave <= max(skywave)))
 
-            bpmag=util.flux2bpmag(skyflux, wave, bandt)
+            bpmag=flux2bpmag(skyflux, wave, bandt)
             if magnitude != None:
                 ratio=10.**(-0.4*(magnitude-bpmag))
                 skyflux=ratio*skyflux
