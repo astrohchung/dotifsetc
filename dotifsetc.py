@@ -201,8 +201,9 @@
 #     .NPIX_SPA: size of PSF on CCD along spatial direction in pixel unit. 
 #         this number is used to calculate readout noise count at each 
 #         wavelength bin. (default: 5)
-#     .RN: readout noise count in ADU (default: 2)
-#     .DARK: dark current in unit of ADU per an hour per pixel. (default: 0)
+#     .RN: readout noise count in electron (default: 2)
+#     .DARK: dark current in unit of electron per an hour per pixel. 
+#         (default: 0)
     
 # OUTPUT PARAMETERS:
 #     user can read output parameters as attributes of the dotifsetc class.
@@ -292,7 +293,11 @@ from math import pi
 import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import dotifs_util as util
+
+if __name__=='__main__':
+    import dotifs_util as util
+else:
+    from . import dotifs_util as util
 
 
 def gen_cal(wave, cdir, calname):
@@ -408,6 +413,7 @@ class dotifsetc(object):
         self.airmass=airmass
         self.tscale=tscale
         self.rmedsn=rmedsn
+    
         
 #         optional input parameters
         self.itpkind='cubic'
@@ -422,7 +428,9 @@ class dotifsetc(object):
         self.pixelsize=15
         self.npix_spa=5
         self.rn=2
-        self.dark=0
+        self.dark=0.02
+        self.ifutrans=0.85*0.9
+        self.mwstep=0.1
         
 #         internally defined parameters
         if '__file__' in globals():
@@ -433,7 +441,8 @@ class dotifsetc(object):
         self.cdir=cdir
         self.consth=constants.h
         self.constc=constants.c
-        self.bwaverng=[2000,10000.]
+#         self.bwaverng=[2000,10000.]
+        self.bwaverng=[3300,9500.]
         self.itpfillvalue='extrapolate'
         self.ncol=7
         self.ncam=9
@@ -448,7 +457,7 @@ class dotifsetc(object):
         if self.pixel == None:
             self.pixel=self.wstep/self.pixelscale
                     
-        ifutrans=0.85*0.9
+        ifutrans=self.ifutrans
         telaream2=(self.pri**2-self.sec**2)/4*pi         #in m^2
         telarea=telaream2*1e4                           #in cm^2
         
@@ -484,7 +493,7 @@ class dotifsetc(object):
         
         stwave=self.plotrange[0]
         edwave=self.plotrange[1]
-        
+        mwstep=self.mwstep
         
         if wavearr == None:
             nwave=int((bwaverng[-1]-bwaverng[0])/wstep)+1
@@ -497,6 +506,9 @@ class dotifsetc(object):
             wave=np.array(wavearr)
             nwave=len(wavearr)
 
+        #define master wave (fine grid)
+        
+            
         
         if skytrans:
             tsky=interp(readdata(cdir, 'response_curves',skytrans),
@@ -623,6 +635,8 @@ class dotifsetc(object):
         self.snr=snr[idx]
         self.signal=signal[idx]
         self.noise=noise[idx]
+        self.sky=skyflux[idx]
+        self.throughput=t1st[idx]
         self.temptitle=temptitle
         self.skytemptitle=skytemptitle
         

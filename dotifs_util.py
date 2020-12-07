@@ -1,10 +1,10 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
-#!jupyter nbconvert --to script dotifs_util.ipynb
+#!jupyter nbconvert --to python dotifs_util.ipynb
 
 
 # In[2]:
@@ -25,6 +25,15 @@ def mag2flux(mag, zero_pt=21.1, ABwave=None):
     if np.any(ABwave != None):
          return 10.**(-0.4*(mag+2.406+5*np.log10(ABwave)))
     return 10.**(-0.4*(mag+zero_pt))
+
+
+# In[ ]:
+
+
+def flux2mag(flux, zero_pt=21.1, ABwave=None):
+    if np.any(ABwave != None):
+        return np.log10(flux)/(-0.4)-2.406-5*np.log10(ABwave)
+    return np.log10(flux)/(-0.4)-zero_pt
 
 
 # In[4]:
@@ -74,4 +83,10 @@ def flux2bpmag(flam, wave, filtertrans_input, filterwave=None,
 
     bpmag=-2.5*np.log10(flux/refflux)
     return bpmag
+
+
+# In[ ]:
+
+
+
 
