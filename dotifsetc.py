@@ -736,10 +736,19 @@ class dotifsetc(object):
             calflag=1
 
         if src_type =='sky':
-            skyfile=readdata(cdir, 'sky_templates',stype)
-
-            skywave=skyfile.wave
-            skyunitcount=skyfile.value
+#             skyfile=readdata(cdir, 'sky_templates',stype)
+#             skywave=skyfile.wave
+#             skyunitcount=skyfile.value
+            
+            if stype < 3:
+                skyfile=readdata(cdir, 'sky_templates',stype)
+                skywave=skyfile.wave
+                skyunitcount=skyfile.value
+            if stype == 3:
+                skyfile=readdata(cdir, 'sky_templates',2)
+                skywave=skyfile.wave
+                skyunitcount=np.full_like(skyfile.value, np.median(skyfile.value))
+            
 
             skyphotone=consth*1e7*constc/(skywave*1e-10)
             skycount=skyunitcount*1e-4*1e-4
