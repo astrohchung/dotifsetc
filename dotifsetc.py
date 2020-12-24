@@ -298,7 +298,10 @@ import matplotlib.pyplot as plt
 #     import dotifs_util as util
 # else:
 #     from . import dotifs_util as util
+
+
 from .dotifs_util import mag2flux, flux2bpmag, planck
+# from dotifs_util import mag2flux, flux2bpmag, planck
 
 
 def gen_cal(wave, cdir, calname):
@@ -863,4 +866,24 @@ class dotifsetc(object):
 
         if self.save == True:
             fig.savefig(self.oname, bbox_inches='tight')
+
+
+# etc=dotifsetc(exptime=600, 
+#               source='obj_s0', z=0.00,
+#       magnitude=18.4, skymagnitude=18, stype=3,
+#               skytrans='skytrans',
+# 		pixel=None, wstep=1, tscale=1, skysamplingsize=np.pi, sourcesamplingsize=1,
+#               rmedsn=True, save=False, show=False, run=False)
+# etc.pri=1.8
+# etc.sec=etc.pri*0.3
+# etc.run()
+# etc.wave[1500]
+# idxx=1500
+# print(etc.signal[idxx],etc.noise[idxx], etc.sourcecount[idxx], etc.pc1st[idxx], etc.tsky[idxx], etc.t1st[idxx])
+
+
+
+
+
+
 
