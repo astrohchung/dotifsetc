@@ -6,8 +6,8 @@
 
 # ###############################################################################
  
-# Copyright (C) 2018, Haeun Chung
-# E-mail: hchung@astro.snu.ac.kr
+# Copyright (C) 2021, Haeun Chung
+# E-mail: haeunchung@arizona.edu
 
 # This software is provided as is without any warranty whatsoever.
 # Permission to use, for non-commercial purposes is granted.
@@ -267,9 +267,9 @@
 #             AOI=10 deg.
 #     v1.3.0: Haeun Chung, 2018, Nov. 12, SNU, Add Littrow ghost. Change 
 #             gen_cal scheme to add non-zero flux to every pixel
-#     v2.0.0: Haeun Chung, 2018. Aug. 8, Translated from IDL to Python 
+#     v2.0.0: Haeun Chung, 2018, Aug. 8, Translated from IDL to Python 
 #             and tested against original version.
-#     v2.1.0: Haeun Chung, 2020. May 14, Steward Observatory (Day 57 of 
+#     v2.1.0: Haeun Chung, 2020, May 14, Steward Observatory (Day 57 of 
 #             WFH due to COVID-19)
 #             - add airmass parameter. Now sky transmission can be 
 #             calculated from sky extinction data (mag/airmass). Direct 
@@ -280,6 +280,11 @@
 #             - change interpolation method of sky template file. Now 
 #             log10(skyflam) value is interpolated to avoid
 #             negative output from cubic interpolation.
+#     v2.2.0: Haeun Chung, 2020, Dec. 28, Steward Observatory (still
+#             Day ?? of WFH due to COVID-19)
+#             - add constant sky option (stype=3)
+#             - include dotifs_util functions to main routine
+#             - add ESO sky transimission option
 
 
 import numpy as np
@@ -290,6 +295,7 @@ from os import path, getcwd
 #from os import getcwd
 import inspect
 from math import pi
+import math.e
 import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -300,8 +306,63 @@ import matplotlib.pyplot as plt
 #     from . import dotifs_util as util
 
 
-from .dotifs_util import mag2flux, flux2bpmag, planck
+# from .dotifs_util import mag2flux, flux2bpmag, planck
 # from dotifs_util import mag2flux, flux2bpmag, planck
+
+
+def mag2flux(mag, zero_pt=21.1, ABwave=None):
+    if np.any(ABwave != None):
+         return 10.**(-0.4*(mag+2.406+5*np.log10(ABwave)))
+    return 10.**(-0.4*(mag+zero_pt))
+
+
+def flux2mag(flux, zero_pt=21.1, ABwave=None):
+    if np.any(ABwave != None):
+        return np.log10(flux)/(-0.4)-2.406-5*np.log10(ABwave)
+    return np.log10(flux)/(-0.4)-zero_pt
+
+
+def planck(wave, temp):
+    w=wave/1e8
+    c1 =  3.7417749e-5  #=2*!DPI*h*c*c   
+    c2 = 1.4387687    # =h*c/k
+    val=c2/w/temp
+    bbflux=c1/(w**5 * (math.e**val-1))*1e-8
+    return bbflux
+
+
+def flux2bpmag(flam, wave, filtertrans_input, filterwave=None,
+               errflag=None, flam_err=None, bpmag_err=None, itpkind='linear'):
+
+    mintrans=0.00011
+    filtertrans=np.copy(filtertrans_input)
+    if filterwave != None:
+        itpfunc=interp1d(filterwave, filtertrans, kind=itpkind)
+        filtertrans=itpfunc(wave)
+        
+    filtertrans=(filtertrans >= mintrans)*filtertrans
+    
+    nwave=len(wave)
+
+    if len(filtertrans) != nwave:
+        errflag=1
+        return
+    
+    constc=constants.c
+
+
+    flux=np.sum(flam*filtertrans)
+
+    
+    refflam=np.ones(nwave)*3631e-23/(wave**2.)*constc*1e10
+    refflux=np.sum(refflam*filtertrans)
+
+    if flam_err != None:
+        err=(np.sum((flam_err*filtertrans)**2))**0.5
+        bpmag_err=-2.5/np.log(10)/flux*err
+
+    bpmag=-2.5*np.log10(flux/refflux)
+    return bpmag
 
 
 def gen_cal(wave, cdir, calname):
@@ -644,6 +705,14 @@ class dotifsetc(object):
         self.temptitle=temptitle
         self.skytemptitle=skytemptitle
         
+        #####
+        self.signal=signal[idx]
+        self.noise=noise[idx]
+        self.sourcecount=sourcecount[idx]
+        self.pc1st=pc1st[idx]
+        self.tsky=tsky[idx]
+        self.t1st=t1st[idx]
+        #####
         
         if self.rmedsn:
             if band=='r':
@@ -870,16 +939,27 @@ class dotifsetc(object):
 
 # etc=dotifsetc(exptime=600, 
 #               source='obj_s0', z=0.00,
-#       magnitude=18.4, skymagnitude=18, stype=3,
+#       magnitude=17.05, skymagnitude=18.5, stype=3,
 #               skytrans='skytrans',
 # 		pixel=None, wstep=1, tscale=1, skysamplingsize=np.pi, sourcesamplingsize=1,
 #               rmedsn=True, save=False, show=False, run=False)
-# etc.pri=1.8
+# etc.pri=1.45255
+# etc.pri=2
 # etc.sec=etc.pri*0.3
+
+# etc.pri=1.6
+# etc.sec=etc.pri*0.5
+
+# etc.show=True
+
+
+
 # etc.run()
 # etc.wave[1500]
 # idxx=1500
 # print(etc.signal[idxx],etc.noise[idxx], etc.sourcecount[idxx], etc.pc1st[idxx], etc.tsky[idxx], etc.t1st[idxx])
+
+# print(etc.plot())
 
 
 
