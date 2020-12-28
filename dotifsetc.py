@@ -295,7 +295,7 @@ from os import path, getcwd
 #from os import getcwd
 import inspect
 from math import pi
-import math.e
+import math
 import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
